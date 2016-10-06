@@ -3,7 +3,7 @@
 	display: none;
 	top: 0;
 	left: 0;
-	max-width: 185px;
+	max-width: 183px;
 	max-height: 300px;
 	z-index: 2499;
 }
@@ -39,6 +39,7 @@
 }
 .colorpickerplus-container .colorpickerplus-custom-colors .colorcell {
 	border:1px solid #ddd;
+    clear: none;
 }
 .colorpickerplus-container .colorpickerplus-custom-colors .selected {
 	border:1px solid #000;

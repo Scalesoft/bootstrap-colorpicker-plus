@@ -5,7 +5,11 @@
     } else if (window.jQuery && !window.jQuery.fn.colorpickerplus) {
         factory(window.jQuery);
     }	
-}(function($){
+}(function ($) {
+    var defaults = {
+        input: null,
+        storeCustomColors: true
+    };
 	var panelColors = ["#5B0F00","#660000","#783F04","#7F6000","#274E13","#0C343D","#1C4587","#073763","#20124D","#4C1130",
 		"#5B0F00","#660000","#783F04","#7F6000","#274E13","#0C343D","#1C4587","#073763","#20124D","#4C1130",
 		"#85200C","#990000","#B45F06","#BF9000","#38761D","#134F5C","#1155CC","#0B5394","#351C75","#741B47",
@@ -17,13 +21,7 @@
 		"#000000","#222222","#444444","#666666","#888888","#AAAAAA","#CCCCCC","#DDDDDD","#EEEEEE","#FFFFFF"];
     var storage = window.localStorage;
     var customColors = [];
-    if(!!storage) {
-        if(!storage.getItem("colorpickerplus_custom_colors")) {
-            storage.setItem("colorpickerplus_custom_colors",customColors.join('$'));
-        }
-        customColors = storage.getItem("colorpickerplus_custom_colors").split('$');
-    }
-	var ROWS = 9;
+    var ROWS = 9;
 	var CELLS = 10;
     var createColorCell = function(color, cell) {
         if(!cell) {
@@ -37,9 +35,19 @@
         }
         return cell;        
     };
-    var ColorpickerEmbed = function(element) {
+    var ColorpickerEmbed = function(element, options) {
         var container = $(element);
-        var customRows = Math.max(Math.ceil(customColors.length/CELLS), 1);
+        this.options = $.extend({}, defaults, options);
+
+        customColors = [];
+        var customRows = 0;
+        if (this.options.storeCustomColors && !!storage) {
+            if (!storage.getItem("colorpickerplus_custom_colors")) {
+                storage.setItem("colorpickerplus_custom_colors", customColors.join('$'));
+            }
+            customColors = storage.getItem("colorpickerplus_custom_colors").split('$');
+            customRows = Math.max(Math.ceil(customColors.length / CELLS), 1);
+        }
         var row = null;
         for(var i=0;i<customRows;i++) {
             if(i===customRows-1) {
@@ -80,11 +88,17 @@
             }
             row.appendTo(container);
         }
-        var inputGrp = $('<div class="input-group input-group-sm"><input type="text" class="form-control"/><span class="input-group-btn"><button class="btn btn-default" type="button" title="Custom Color">C</button></span></div>');
+        var inputGrp = $('<div class="input-group input-group-sm"><input type="text" class="form-control input-sm"/></div>');
         var colorInput = $('input', inputGrp);
+        if (this.options.storeCustomColors) {
+            var customButton = $('<span class="input-group-btn"><button class="btn btn-default" type="button" title="Custom Color">C</button></span>');
+            inputGrp.append(customButton);
+            inputGrp.on('click.colorpickerplus-container', 'button', $.proxy(this.custom, this));
+        } else {
+            inputGrp.removeClass("input-group").removeClass("input-group-sm");
+        }
         inputGrp.appendTo(container);
         container.on('click.colorpickerplus-container', '.colorcell', $.proxy(this.select, this));
-        inputGrp.on('click.colorpickerplus-container', 'button', $.proxy(this.custom, this));
         colorInput.on('changeColor.colorpickerplus-container', $.proxy(this.change, this));
         container.on('click', $.proxy(this.stopPropagation, this));
         colorInput.colorpicker();
@@ -170,30 +184,7 @@
         });
     };
     $.fn.colorpickerembed.constructor = ColorpickerEmbed;
-    //singleton
-	var colorpickerplus = $('.colorpickerplus');
-	if(colorpickerplus.length<=0) {
-      colorpickerplus = $('<div class="colorpickerplus"></div>');
-	  colorpickerplus.appendTo($('body'));
-	  //console.log('append singleton to body');
-	}
-    var _container = $('<div class="colorpickerplus-container"></div>').appendTo(colorpickerplus);
-    _container.colorpickerembed();
-    var currPicker = null;
-    _container.on('changeColor', function(e, val){
-	  //console.log('color:'+val);
-        if(!!currPicker) {		  
-	  //console.log('color:'+val);
-            currPicker.setValue(val);
-        }
-    });
-    _container.on('select', function(){
-        if(!!currPicker) {
-            // currPicker.setValue(c);
-            hide();
-        }
-    });
-    //var embed = _container.data('colorpickerembed');
+    
 	/*
     colorpickerplus.on('mouseup.colorpickerplus', function(e) {
 		var target = $(e.target);
@@ -202,28 +193,23 @@
 		}
     });
 	*/
-    var show = function(picker) {
-        _container.data('colorpickerembed').update(picker.getValue());
-        currPicker = picker;
-        colorpickerplus.show();
-        //console.log('show');
-    };
-    var hide = function() {
-        //colorpickerplus.offset({top:0, left:0});
-        colorpickerplus.hide();
-        currPicker = null;
-    };
     var reposition = function(picker) {
-	  var $element = $(picker.element);
+	    var $element = $(picker.element);
         var offset = $element.offset();
         //var mx = offset.left+picker.element.outerHeight();
         //var my = offset.top;
         //console.log(picker.element.outerHeight());
         offset.top +=$element.outerHeight();
-        colorpickerplus.css(offset);
+        picker._mainContainer.css(offset);
     };
-    var defaults = {};
     var ColorpickerPlus = function(element, options) {
+        var colorpickerplus = $('<div class="colorpickerplus"></div>');
+        colorpickerplus.appendTo($('body'));
+        var _container = $('<div class="colorpickerplus-container"></div>').appendTo(colorpickerplus);
+        _container.colorpickerembed(options);
+        this._mainContainer = colorpickerplus;
+        this._innerContainer = _container;
+
         var $element = $(element);
         this.options = $.extend({}, defaults, $element.data(), options);        
         var input = $element.is('input') ? $element : (this.options.input ?
@@ -247,6 +233,16 @@
         // $($.proxy(function() {
         //     $element.trigger('create');
         // }, this));
+
+        var self = this;
+		_container.on('changeColor', function (e, val) {
+		    self.setValue(val);
+		});
+		_container.on('select', function () {
+		    // this.setValue(c);
+		    //colorpickerplus.offset({top:0, left:0});
+		    colorpickerplus.hide();
+		});
     };
     ColorpickerPlus.version = '0.1.0';
     ColorpickerPlus.prototype = {
@@ -267,7 +263,10 @@
             this.reposition();
             $(window).on('resize.colorpickerplus', $.proxy(this.reposition, this));
             $(window.document.body).on('mouseup.colorpickerplus', $.proxy(this.hide, this));
-            show(this);
+            //show(this);
+            this._innerContainer.data('colorpickerembed').update(this.getValue());
+            this._mainContainer.show();
+
             $element.trigger('showPicker',[this.getValue()]);
         },
         hide: function(e) {
@@ -275,7 +274,8 @@
 			var target = $(e.target);
             var p = target.closest('.colorpicker, .colorpickerplus');
             if(p.length>0||target.is('input')) {return;}
-            hide();
+            //hide();
+            this._mainContainer.hide();
             $(window).off('resize.colorpickerplus');
             $(window.document.body).off('mouseup.colorpickerplus');
             $element.trigger('hidePicker',[this.getValue()]);
